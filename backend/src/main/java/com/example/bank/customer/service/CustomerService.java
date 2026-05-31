@@ -34,25 +34,14 @@ public class CustomerService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        customerRepository.findByEmail(request.email()).ifPresent(c -> {
-            throw new IllegalArgumentException("Пользователь с таким email уже существует");
-        });
-
-        Role role = roleRepository.findByName("USER")
-                .orElseThrow(() -> new IllegalStateException("Роль USER не найдена"));
-
-        Customer customer = Customer.builder()
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .email(request.email().toLowerCase())
-                .password(passwordEncoder.encode(request.password()))
-                .roles(Set.of(role))
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        customerRepository.save(customer);
+        Customer customer = createCustomer(request, "USER");
         String token = jwtService.generateToken(customer.getEmail());
         return new AuthResponse(token, "Bearer", jwtService.getExpirationSeconds());
+    }
+
+    @Transactional
+    public UserResponse createAdmin(RegisterRequest request) {
+        return map(createCustomer(request, "ADMIN"));
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -104,13 +93,35 @@ public class CustomerService {
     }
 
     @Transactional
-    public UserResponse updateRole(Long id, String roleName) {
+    public UserResponse updateRole(Long id, String roleName, String currentAdminEmail) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Клиент не найден"));
-        Role role = roleRepository.findByName(normalizeRole(roleName))
+        String normalizedRole = normalizeRole(roleName);
+        if (customer.getEmail().equalsIgnoreCase(currentAdminEmail) && !normalizedRole.equals("ADMIN")) {
+            throw new IllegalArgumentException("Администратор не может снять права администратора у собственной учетной записи");
+        }
+        Role role = roleRepository.findByName(normalizedRole)
                 .orElseThrow(() -> new IllegalArgumentException("Роль не найдена"));
         customer.setRoles(Set.of(role));
         return map(customer);
+    }
+
+    private Customer createCustomer(RegisterRequest request, String roleName) {
+        String email = request.email().toLowerCase(Locale.ROOT);
+        customerRepository.findByEmail(email).ifPresent(c -> {
+            throw new IllegalArgumentException("Пользователь с таким email уже существует");
+        });
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new IllegalStateException("Роль " + roleName + " не найдена"));
+        Customer customer = Customer.builder()
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .email(email)
+                .password(passwordEncoder.encode(request.password()))
+                .roles(Set.of(role))
+                .createdAt(LocalDateTime.now())
+                .build();
+        return customerRepository.save(customer);
     }
 
     private String normalizeRole(String roleName) {

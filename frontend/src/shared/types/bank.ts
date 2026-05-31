@@ -17,6 +17,15 @@ export interface FraudCheck { suspicious: boolean; riskScore: number; reason: st
 export interface FraudTransaction { id: number; transaction: Transaction; suspicious: boolean; riskScore: number; reason: string; source: string; status: 'NEW' | 'SAFE' | 'SUSPICIOUS'; reviewerNote?: string | null }
 export interface MonthlyAnalytics { month: string; outgoingOperations: number; outgoingTotal: number; incomingOperations: number; incomingTotal: number }
 
+export interface AdminDailyMetric { date: string; operations: number; volume: number }
+export interface AdminAlert { severity: 'low' | 'medium' | 'high' | string; title: string; description: string; actionLabel: string }
+export interface AdminAnalytics {
+  totalUsers: number; totalAdmins: number; totalAccounts: number; totalBalance: number; totalCards: number; activeCards: number; blockedCards: number;
+  totalTransactions: number; totalTransactionVolume: number; transactionsToday: number; transactionVolumeToday: number; pendingLoans: number; loanPortfolio: number;
+  activeDeposits: number; depositPortfolio: number; suspiciousTransactions: number; newFraudReviews: number; reviewedFraudTransactions: number;
+  usersByRole: Record<string, number>; transactionsByType: Record<string, number>; dailyMetrics: AdminDailyMetric[]; alerts: AdminAlert[];
+}
+
 export interface CreditEstimate { requestedAmount: number; termMonths: number; annualRate: number; monthlyPayment: number; totalPayment: number; overpayment: number }
 export interface DepositEstimate { amount: number; termMonths: number; annualRate: number; maturityDate: string; projectedPayout: number; income: number }
 
