@@ -42,10 +42,26 @@ public class FraudGatewayService {
 
     private FraudCheckResponse localHeuristic(FraudCheckRequest request) {
         String text = request.message().toLowerCase(Locale.ROOT);
-        List<String> riskyWords = List.of("crypto", "urgent", "срочно", "пароль", "pin", "казино", "bet", "даркнет");
+        List<String> criticalWords = List.of(
+                "оружие", "боеприпасы", "патроны", "взрывчатка",
+                "наркотики", "наркота", "закладка", "мефедрон", "героин", "кокаин",
+                "проституция", "эскорт", "бордель",
+                "отмыв", "взятка", "откат", "терроризм", "экстремизм",
+                "поддельные документы", "фальшивые документы", "краденые карты",
+                "дроп", "дроппер", "нелегальный товар", "черная бухгалтерия"
+        );
+        List<String> riskyWords = List.of(
+                "crypto", "urgent", "срочно", "пароль", "pin", "казино", "bet", "даркнет",
+                "крипта", "криптовалюта", "биткоин", "обнал", "обналичивание",
+                "без назначения", "не указывай", "никому не говори", "код из смс", "служба безопасности"
+        );
+        int criticalMatches = (int) criticalWords.stream().filter(text::contains).count();
         int matches = (int) riskyWords.stream().filter(text::contains).count();
         int amountRisk = request.amount().doubleValue() >= 100_000 ? 45 : request.amount().doubleValue() >= 30_000 ? 20 : 0;
-        int score = Math.min(100, matches * 20 + amountRisk);
-        return new FraudCheckResponse(score >= 50, score, score >= 50 ? "Подозрительное назначение платежа" : "Риск низкий", "local-heuristic");
+        int score = Math.min(100, criticalMatches * 80 + matches * 20 + amountRisk);
+        String reason = criticalMatches > 0
+                ? "Назначение платежа содержит слова с запрещенной или криминальной тематикой"
+                : score >= 50 ? "Подозрительное назначение платежа" : "Риск низкий";
+        return new FraudCheckResponse(score >= 50, score, reason, "local-heuristic");
     }
 }
